@@ -1,0 +1,30 @@
+﻿@using Blazored.LocalStorage
+@inherits LayoutComponentBase
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager nm
+<HeadContent>
+    <RadzenTheme Theme="material" />
+</HeadContent>
+<RadzenComponents />
+
+<RadzenLayout Style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body'">
+    <RadzenBody>
+        <div class="rz-p-4">
+            @Body
+        </div>
+    </RadzenBody>
+</RadzenLayout>
+
+
+
+@code {
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (!string.IsNullOrEmpty(token))
+        {
+            nm.NavigateTo("/main", true); // Redirect ke /main jika sudah login
+        }
+    }
+}

@@ -1,0 +1,47 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using PortalWeb.Services
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager nm
+@inherits LayoutComponentBase
+<HeadContent>
+    <RadzenTheme Theme="material" />
+</HeadContent>
+<RadzenComponents />
+<AuthorizeView>
+    <Authorized>
+        <RadzenLayout Style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body'">
+            <RadzenHeader>
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
+                    <RadzenSidebarToggle Click="@(() => sidebarExpanded = !sidebarExpanded)" />
+                    <RadzenLabel Text="Header" />
+                </RadzenStack>
+            </RadzenHeader>
+            <RadzenSidebar @bind-Expanded="@sidebarExpanded">
+                <RadzenPanelMenu>
+                    <RadzenPanelMenuItem Text="Upload File" Path="/upload" Icon="upload" />
+                    <RadzenPanelMenuItem Text="Download File" Path="/download" Icon="download" />
+                    <RadzenButton ButtonStyle="ButtonStyle.Info" Variant="Variant.Text" Click=@Logout Text="Logout" Icon="logout" />
+                </RadzenPanelMenu>
+            </RadzenSidebar>
+            <RadzenBody>
+                <div class="rz-p-4">
+                    @Body
+                </div>
+            </RadzenBody>
+        </RadzenLayout>
+    </Authorized>
+    <NotAuthorized>
+        <h3>Access Denied!</h3>
+        <p>Please <a href="/">Login</a> to continue.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    bool sidebarExpanded = true;
+    async Task Logout()
+    {
+        var authStateProvider = (CustomAuthStateProvider)AuthStateProvider;
+        await authStateProvider.MarkUserAsLoggedOut();
+        nm.NavigateTo("/");
+    }
+}

@@ -1,0 +1,111 @@
+﻿@page "/upload"
+@using PortalWeb.ViewModel
+@inject NotificationService NotificationService
+
+<h3>Upload File Excel</h3>
+
+<InputFile OnChange="HandleFileChange" />
+<button @onclick="UploadFile" disabled="@isUploading">Upload</button>
+
+
+
+<RadzenDataGrid @ref="grid" AllowColumnPicking="true" AllowFiltering="true" AllowPaging="true" AllowSorting="true" Data="@products">
+    <Columns>
+        <RadzenDataGridColumn Property="@nameof(Product.Id)" Title="Id" />
+        <RadzenDataGridColumn Property="@nameof(Product.Name)" Title="Name" />
+        <RadzenDataGridColumn Property="@nameof(Product.Price)" Title="Price" />
+        <RadzenDataGridColumn Property="@nameof(Product.Stock)" Title="Stock" />
+    </Columns>
+</RadzenDataGrid>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <p>@statusMessage</p>
+}
+
+
+@code {
+    [Inject]
+    HttpClient? _httpClient { get; set; }
+
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
+
+    RadzenDataGrid<Product> grid;
+    private IBrowserFile? selectedFile;
+    private bool isUploading = false;
+    private string statusMessage = "";
+    string baseurl = "https://localhost:7135/";
+
+    private List<Product>? products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _httpClient = new HttpClient();
+        _httpClient.BaseAddress = new Uri(baseurl);
+        products = await _httpClient.GetFromJsonAsync<List<Product>>("api/excelupload/getalldata");
+        await base.OnInitializedAsync();
+    }
+
+    async Task GetAllData()
+    {
+        products = await _httpClient.GetFromJsonAsync<List<Product>>("api/excelupload/getalldata");
+        StateHasChanged();
+    }
+
+    private void HandleFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null)
+        {
+            statusMessage = "Pilih file terlebih dahulu!";
+            var notifySelected = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Warning, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+            NotificationService.Notify(notifySelected);
+            return;
+        }
+
+        isUploading = true;
+        statusMessage = "Mengupload file...";
+        var notifyLoading = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Info, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+        NotificationService.Notify(notifyLoading);
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var fileStream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // Maks 10MB
+            var fileContent = new StreamContent(fileStream);
+            content.Add(fileContent, "file", selectedFile.Name);
+
+            var response = await _httpClient.PostAsync("api/excelupload/upload", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "Upload berhasil!";
+                var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Success, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+                NotificationService.Notify(notify);
+                await GetAllData();
+                StateHasChanged();
+            }
+            else
+            {
+                statusMessage = $"Gagal mengupload: {await response.Content.ReadAsStringAsync()}";
+                var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Error, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+                NotificationService.Notify(notify);
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Error, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+            NotificationService.Notify(notify);
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+}

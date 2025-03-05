@@ -1,0 +1,6 @@
+@PortalWebServer_HostAddress = http://localhost:5108
+
+GET {{PortalWebServer_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

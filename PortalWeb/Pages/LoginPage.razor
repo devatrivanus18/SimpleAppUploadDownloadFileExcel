@@ -1,0 +1,88 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using PortalWeb.Services
+@layout LoginLayout
+@inject NotificationService NotificationService
+@inject NavigationManager nm
+@inject AuthenticationStateProvider AuthStateProvider
+
+<RadzenStack Gap="0" class="rz-my-12 rz-mx-auto rz-border-radius-6 rz-shadow-10" Style="width: 100%; max-width: 720px; overflow: hidden;">
+    <RadzenCard class="rz-shadow-0 rz-border-radius-0 rz-background-color-info rz-p-12" style="text-align: center;">
+        <RadzenText TextStyle="TextStyle.DisplayH3" TagName="TagName.H2" class="rz-color-white rz-mb-0">Login</RadzenText>
+    </RadzenCard>
+    @if (!otpSent)
+    {
+        <RadzenCard class="rz-shadow-0 rz-p-12">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Gap="1rem">
+                <RadzenTextBox Placeholder="Enter your email" @bind-Value=@email Style="width: 60%" aria-label="Default TextBox" />
+                <RadzenButton Click=@RequestOtp Text="OTP Request" Style="width: 40%" ButtonStyle="ButtonStyle.Primary" />
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else
+    {
+        <RadzenCard class="rz-shadow-0 rz-p-12">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Gap="1rem">
+                <RadzenTextBox Placeholder="Enter Otp" @bind-Value=@otp Style="width: 60%" aria-label="Default TextBox" />
+                <RadzenButton Click=@VerifyOtp Text="Login" Style="width: 40%" ButtonStyle="ButtonStyle.Primary" />
+            </RadzenStack>
+        </RadzenCard>
+    }
+</RadzenStack>
+@code {
+    [Inject] 
+    HttpClient? _httpClient { get; set; }
+    private string email = "";
+    private string otp = "";
+    private string message = "";
+    private bool otpSent = false;
+    string baseurl = "https://localhost:7135/";
+
+    protected override Task OnInitializedAsync()
+    {
+        _httpClient = new HttpClient();
+        _httpClient.BaseAddress = new Uri(baseurl);
+        return base.OnInitializedAsync();
+    }
+
+    private async Task RequestOtp()
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/Otp/request-otp", new { Email = email });
+        if (response.IsSuccessStatusCode)
+        {
+            otpSent = true;
+            message = "OTP sent! Check your email.";
+            var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Success, Summary = "Message", Detail = message, Duration = 4000 };
+            NotificationService.Notify(notify);
+        }
+        else
+        {
+            message = "Failed to send OTP.";
+            var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Error, Summary = "Message", Detail = message, Duration = 4000 };
+            NotificationService.Notify(notify);
+        }
+    }
+
+    private async Task VerifyOtp()
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/Otp/verify-otp", new { Email = email, Otp = otp });
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+            var token = result?["token"];
+            var authStateProvider = (CustomAuthStateProvider)AuthStateProvider;
+            await authStateProvider.MarkUserAsAuthenticated(token);
+            message = "Login successful!";
+            var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Success, Summary = "Message", Detail = message, Duration = 4000 };
+            NotificationService.Notify(notify);
+            await Task.Delay(1000);
+            nm.NavigateTo("/main");
+        }
+        else
+        {
+            message = "Invalid OTP.";
+            var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Error, Summary = "Message", Detail = message, Duration = 4000 };
+            NotificationService.Notify(notify);
+        }
+    }
+}

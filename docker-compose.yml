@@ -1,0 +1,6 @@
+services:
+  portalwebserver:
+    image: ${DOCKER_REGISTRY-}portalwebserver
+    build:
+      context: PortalWebServer
+      dockerfile: Dockerfile

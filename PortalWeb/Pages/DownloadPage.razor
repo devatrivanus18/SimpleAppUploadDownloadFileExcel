@@ -1,0 +1,68 @@
+﻿@page "/download"
+@using PortalWeb.ViewModel
+<h3>Download Data To Excel File</h3>
+@inject NotificationService NotificationService
+
+<RadzenDataGrid @ref="grid" AllowColumnPicking="true" AllowFiltering="true" AllowPaging="true" AllowSorting="true" Data="@products">
+    <HeaderTemplate>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem;" Wrap="FlexWrap.Wrap">
+            <RadzenButton Text="Export XLS" Icon="grid_on" Click="@DownloadFile" />
+        </RadzenStack>
+    </HeaderTemplate>
+    <Columns>
+        <RadzenDataGridColumn Property="@nameof(Product.Id)" Title="Id" />
+        <RadzenDataGridColumn Property="@nameof(Product.Name)" Title="Name" />
+        <RadzenDataGridColumn Property="@nameof(Product.Price)" Title="Price" />
+        <RadzenDataGridColumn Property="@nameof(Product.Stock)" Title="Stock" />
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
+    [Inject]
+    HttpClient? _httpClient { get; set; }
+    private string statusMessage = "";
+    string baseurl = "https://localhost:7135/";
+    RadzenDataGrid<Product> grid;
+    private List<Product>? products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _httpClient = new HttpClient();
+        _httpClient.BaseAddress = new Uri(baseurl);
+        products = await _httpClient.GetFromJsonAsync<List<Product>>("api/excelupload/getalldata");
+        await base.OnInitializedAsync();
+    }
+    private async Task DownloadFile()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/excelupload/download");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var fileName = "Products.xlsx";
+                var content = await response.Content.ReadAsByteArrayAsync();
+
+                // Panggil JavaScript untuk download file
+                await JS.InvokeVoidAsync("downloadFile", fileName, content);
+                statusMessage = "Download berhasil!";
+                var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Success, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+                NotificationService.Notify(notify);
+            }
+            else
+            {
+                statusMessage = "Gagal mendownload file.";
+                var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Error, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+                NotificationService.Notify(notify);
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            var notify = new NotificationMessage { Style = "position: absolute; inset-inline-start: -1000px;", Severity = NotificationSeverity.Error, Summary = "Message", Detail = statusMessage, Duration = 4000 };
+            NotificationService.Notify(notify);
+        }
+    }
+}
