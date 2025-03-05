@@ -84,7 +84,6 @@ public class ExcelUploadController : ControllerBase
             }
             await RemoveCacheAsync();
             return Ok(products);
-
         }
         catch (Exception ex)
         {
